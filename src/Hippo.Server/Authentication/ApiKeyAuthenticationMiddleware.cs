@@ -49,8 +49,13 @@ public sealed class ApiKeyAuthenticationMiddleware(
         await next(context);
     }
 
-    private static string? ReadBearerToken(string authorizationHeader)
+    private static string? ReadBearerToken(string? authorizationHeader)
     {
+        if (string.IsNullOrWhiteSpace(authorizationHeader))
+        {
+            return null;
+        }
+
         const string prefix = "Bearer ";
 
         return authorizationHeader.StartsWith(
