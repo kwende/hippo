@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Using Include="Xunit" />
     <ProjectReference Include="..\..\src\Hippo.Server\Hippo.Server.csproj" />
   </ItemGroup>
 </Project>
