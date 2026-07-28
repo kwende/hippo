@@ -20,7 +20,11 @@ public sealed partial class FindingValidator(IOptions<HippoOptions> options)
 
     public void Validate(RecallRequest request)
     {
-        if (request.EntityIdentifiers.Count is < 1 or > 50)
+        var ids = request.EntityIdentifiers?
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .ToList() ?? [];
+
+        if (ids.Count is < 1 or > 50)
         {
             throw new ArgumentException(
                 "Recall requires between 1 and 50 entity identifiers.");
@@ -44,16 +48,18 @@ public sealed partial class FindingValidator(IOptions<HippoOptions> options)
                 "SourceSessionId is required and cannot exceed 200 characters.");
         }
 
-        if (request.Findings.Count > _options.MaximumFindingsPerWrite)
+        var findings = request.Findings ?? [];
+
+        if (findings.Count > _options.MaximumFindingsPerWrite)
         {
             throw new ArgumentException(
                 $"A write may contain at most " +
                 $"{_options.MaximumFindingsPerWrite} findings.");
         }
 
-        for (var index = 0; index < request.Findings.Count; index++)
+        for (var index = 0; index < findings.Count; index++)
         {
-            Validate(request.Findings[index], index);
+            Validate(findings[index], index);
         }
     }
 
@@ -95,13 +101,15 @@ public sealed partial class FindingValidator(IOptions<HippoOptions> options)
                 $"Finding {index} effective end cannot precede its start.");
         }
 
-        if (finding.Entities.Count is < 1 or > 20)
+        var entities = finding.Entities ?? [];
+
+        if (entities.Count is < 1 or > 20)
         {
             throw new ArgumentException(
                 $"Finding {index} requires between 1 and 20 entities.");
         }
 
-        foreach (var entity in finding.Entities)
+        foreach (var entity in entities)
         {
             if (string.IsNullOrWhiteSpace(entity.Kind) ||
                 string.IsNullOrWhiteSpace(entity.CanonicalKey) ||
@@ -113,21 +121,23 @@ public sealed partial class FindingValidator(IOptions<HippoOptions> options)
             }
         }
 
-        if (finding.Evidence.Count > 20)
+        var evidence = finding.Evidence ?? [];
+
+        if (evidence.Count > 20)
         {
             throw new ArgumentException(
                 $"Finding {index} may contain at most 20 evidence references.");
         }
 
-        foreach (var evidence in finding.Evidence)
+        foreach (var ev in evidence)
         {
-            if (string.IsNullOrWhiteSpace(evidence.Type))
+            if (string.IsNullOrWhiteSpace(ev.Type))
             {
                 throw new ArgumentException(
                     $"Finding {index} contains evidence without a type.");
             }
 
-            if (evidence.Excerpt?.Length >
+            if (ev.Excerpt?.Length >
                 _options.MaximumEvidenceExcerptLength)
             {
                 throw new ArgumentException(
