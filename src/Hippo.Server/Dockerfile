@@ -17,7 +17,7 @@ WORKDIR /app
 
 COPY --from=build /app/publish ./
 
-USER $APP_UID
+USER 1654
 EXPOSE 8080
 
 ENTRYPOINT ["dotnet", "Hippo.Server.dll"]
