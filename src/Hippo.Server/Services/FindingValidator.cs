@@ -20,9 +20,13 @@ public sealed partial class FindingValidator(IOptions<HippoOptions> options)
 
     public void Validate(RecallRequest request)
     {
-        var ids = request.EntityIdentifiers?
-            .Where(id => !string.IsNullOrWhiteSpace(id))
-            .ToList() ?? [];
+        var ids = request.EntityIdentifiers ?? [];
+
+        if (ids.Any(string.IsNullOrWhiteSpace))
+        {
+            throw new ArgumentException(
+                "Recall entity identifiers must not be empty or whitespace.");
+        }
 
         if (ids.Count is < 1 or > 50)
         {
@@ -129,15 +133,15 @@ public sealed partial class FindingValidator(IOptions<HippoOptions> options)
                 $"Finding {index} may contain at most 20 evidence references.");
         }
 
-        foreach (var ev in evidence)
+        foreach (var evidenceRef in evidence)
         {
-            if (string.IsNullOrWhiteSpace(ev.Type))
+            if (string.IsNullOrWhiteSpace(evidenceRef.Type))
             {
                 throw new ArgumentException(
                     $"Finding {index} contains evidence without a type.");
             }
 
-            if (ev.Excerpt?.Length >
+            if (evidenceRef.Excerpt?.Length >
                 _options.MaximumEvidenceExcerptLength)
             {
                 throw new ArgumentException(
