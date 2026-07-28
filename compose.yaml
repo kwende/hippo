@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.5-pg18-bookworm
+    container_name: hippo-postgres
+    environment:
+      POSTGRES_DB: hippo
+      POSTGRES_USER: hippo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:54329:5432"
+    volumes:
+      - hippo-postgres-data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hippo -d hippo"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks:
+      - hippo-internal
+
+  memory-api:
+    build:
+      context: .
+      dockerfile: src/Hippo.Server/Dockerfile
+    container_name: hippo-memory-api
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Hippo: >-
+        Host=postgres;
+        Port=5432;
+        Database=hippo;
+        Username=hippo;
+        Password=${POSTGRES_PASSWORD}
+      Hippo__ApiKeys__0__Token: ${HIPPO_CODEX_TOKEN:?Set HIPPO_CODEX_TOKEN in .env}
+      Hippo__ApiKeys__0__PrincipalId: ben
+      Hippo__ApiKeys__0__DisplayName: Ben
+      Hippo__ApiKeys__0__ClientName: codex
+      Hippo__ApiKeys__1__Token: ${HIPPO_CLAUDE_TOKEN:?Set HIPPO_CLAUDE_TOKEN in .env}
+      Hippo__ApiKeys__1__PrincipalId: josh
+      Hippo__ApiKeys__1__DisplayName: Josh
+      Hippo__ApiKeys__1__ClientName: claude
+      Hippo__ApiKeys__2__Token: ${HIPPO_TEST_TOKEN:?Set HIPPO_TEST_TOKEN in .env}
+      Hippo__ApiKeys__2__PrincipalId: test-harness
+      Hippo__ApiKeys__2__DisplayName: Test Harness
+      Hippo__ApiKeys__2__ClientName: integration-test
+    ports:
+      - "127.0.0.1:8787:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    networks:
+      - hippo-internal
+
+volumes:
+  hippo-postgres-data:
+
+networks:
+  hippo-internal:
+    driver: bridge

@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+      - "agent/**"
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-image:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore Hippo.sln
+
+      - name: Build
+        run: dotnet build Hippo.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test Hippo.sln --configuration Release --no-build
+
+      - name: Validate Compose
+        env:
+          POSTGRES_PASSWORD: ci-postgres-password
+          HIPPO_CODEX_TOKEN: ci-codex-token
+          HIPPO_CLAUDE_TOKEN: ci-claude-token
+          HIPPO_TEST_TOKEN: ci-test-token
+        run: docker compose config --quiet
+
+      - name: Build container
+        run: docker build --file src/Hippo.Server/Dockerfile .
