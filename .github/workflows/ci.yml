@@ -11,8 +11,14 @@ permissions:
   contents: read
 
 jobs:
-  build-test-image:
+  build-test-smoke:
     runs-on: ubuntu-latest
+
+    env:
+      POSTGRES_PASSWORD: ci-postgres-password
+      HIPPO_CODEX_TOKEN: ci-codex-token
+      HIPPO_CLAUDE_TOKEN: ci-claude-token
+      HIPPO_TEST_TOKEN: ci-test-token
 
     steps:
       - uses: actions/checkout@v4
@@ -32,12 +38,30 @@ jobs:
         run: dotnet test Hippo.sln --configuration Release --no-build
 
       - name: Validate Compose
-        env:
-          POSTGRES_PASSWORD: ci-postgres-password
-          HIPPO_CODEX_TOKEN: ci-codex-token
-          HIPPO_CLAUDE_TOKEN: ci-claude-token
-          HIPPO_TEST_TOKEN: ci-test-token
         run: docker compose config --quiet
 
-      - name: Build container
-        run: docker build --file src/Hippo.Server/Dockerfile .
+      - name: Start stack
+        run: docker compose up --build --detach
+
+      - name: Verify schema and readiness
+        shell: bash
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error \
+              http://127.0.0.1:8787/health/ready > /dev/null; then
+              docker compose exec -T postgres \
+                psql -U hippo -d hippo -v ON_ERROR_STOP=1 \
+                -c "SELECT to_regclass('hippo.memory_item');"
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          docker compose ps
+          docker compose logs
+          exit 1
+
+      - name: Stop stack
+        if: always()
+        run: docker compose down --volumes
