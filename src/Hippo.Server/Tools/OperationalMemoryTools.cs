@@ -12,9 +12,8 @@ public static class OperationalMemoryTools
     [McpServerTool(Name = "recall_operational_context")]
     [Description(
         """
-        Recall compact shared operational context related to exact machine,
-        customer, site, incident, software-version, hardware-revision, or
-        component identifiers.
+        Recall compact shared knowledge constrained by producing source systems,
+        exact operational entity identifiers, or both.
 
         Call this during diagnostic work after identifying relevant entities and
         before finalizing conclusions, even when the human did not explicitly
@@ -45,7 +44,9 @@ public static class OperationalMemoryTools
         Store compact claims, not conversations or raw logs. Distinguish direct
         observations and events from hypotheses and conclusions. Do not store
         credentials, routine plans, transient debugging chatter, or unsupported
-        speculation. Repeated submissions are deduplicated.
+        speculation. The producing source system comes from the authenticated
+        credential and cannot be selected by this request. Repeated submissions
+        from the same source are deduplicated.
         """
     )]
     public static Task<RecordFindingsResult> RecordOperationalFindingsAsync(

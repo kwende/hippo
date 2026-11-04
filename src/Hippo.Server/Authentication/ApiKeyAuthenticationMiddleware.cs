@@ -44,7 +44,8 @@ public sealed class ApiKeyAuthenticationMiddleware(
         callerIdentityAccessor.Current = new CallerIdentity(
             match.PrincipalId,
             match.DisplayName,
-            match.ClientName);
+            match.ClientName,
+            match.SourceSystem);
 
         await next(context);
     }

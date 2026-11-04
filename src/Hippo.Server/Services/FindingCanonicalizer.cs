@@ -6,12 +6,16 @@ namespace Hippo.Server.Services;
 
 public sealed class FindingCanonicalizer
 {
-    public byte[] ComputeHash(ProposedFinding finding)
+    public byte[] ComputeHash(string sourceSystem, ProposedFinding finding)
     {
         using var stream = new MemoryStream();
         using var writer = new Utf8JsonWriter(stream);
 
         writer.WriteStartObject();
+
+        writer.WriteString(
+            "sourceSystem",
+            Normalize(sourceSystem));
 
         writer.WriteString(
             "kind",

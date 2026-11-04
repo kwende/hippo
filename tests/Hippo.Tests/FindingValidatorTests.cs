@@ -47,6 +47,31 @@ public sealed class FindingValidatorTests
         _validator.Validate(ValidRequest());
     }
 
+    [Fact]
+    public void Accepts_source_only_recall()
+    {
+        _validator.Validate(new RecallRequest
+        {
+            SourceSystems = ["wander"]
+        });
+    }
+
+    [Fact]
+    public void Rejects_recall_without_an_entity_or_source()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            _validator.Validate(new RecallRequest()));
+    }
+
+    [Fact]
+    public void Accepts_a_finding_without_an_operational_entity()
+    {
+        _validator.Validate(ValidRequest() with
+        {
+            Findings = [ValidFinding() with { Entities = [] }]
+        });
+    }
+
     private static RecordFindingsRequest ValidRequest() =>
         new()
         {

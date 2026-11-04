@@ -98,6 +98,10 @@ CREATE TABLE hippo.memory_item
                             'retracted'
                         )),
 
+    source_system       text NOT NULL
+                        CHECK (source_system ~
+                               '^[a-z0-9]+([._-][a-z0-9]+)*$'),
+
     principal_id        text NOT NULL CHECK (btrim(principal_id) <> ''),
     principal_name      text NOT NULL CHECK (btrim(principal_name) <> ''),
     agent_client        text NOT NULL CHECK (btrim(agent_client) <> ''),
@@ -132,6 +136,9 @@ CREATE INDEX memory_item_effective_idx
 
 CREATE INDEX memory_item_status_kind_idx
     ON hippo.memory_item(status, kind);
+
+CREATE INDEX memory_item_source_idx
+    ON hippo.memory_item(source_system, principal_id, recorded_at DESC);
 
 CREATE INDEX memory_item_recorded_idx
     ON hippo.memory_item(recorded_at DESC);

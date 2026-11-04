@@ -21,6 +21,7 @@ public sealed partial class FindingValidator(IOptions<HippoOptions> options)
     public void Validate(RecallRequest request)
     {
         var ids = request.EntityIdentifiers ?? [];
+        var sources = request.SourceSystems ?? [];
 
         if (ids.Any(string.IsNullOrWhiteSpace))
         {
@@ -28,10 +29,18 @@ public sealed partial class FindingValidator(IOptions<HippoOptions> options)
                 "Recall entity identifiers must not be empty or whitespace.");
         }
 
-        if (ids.Count is < 1 or > 50)
+        if (ids.Count > 50)
         {
             throw new ArgumentException(
-                "Recall requires between 1 and 50 entity identifiers.");
+                "Recall accepts at most 50 entity identifiers.");
+        }
+
+        ValidateSourceSystems(sources, "Recall");
+
+        if (ids.Count == 0 && sources.Count == 0)
+        {
+            throw new ArgumentException(
+                "Recall requires at least one entity identifier or source system.");
         }
 
         if (request.TimeRangeStart is not null &&
@@ -66,6 +75,9 @@ public sealed partial class FindingValidator(IOptions<HippoOptions> options)
             Validate(findings[index], index);
         }
     }
+
+    public void ValidateSourceSystem(string sourceSystem) =>
+        ValidateSourceSystems([sourceSystem], "Write");
 
     private void Validate(ProposedFinding finding, int index)
     {
@@ -107,10 +119,10 @@ public sealed partial class FindingValidator(IOptions<HippoOptions> options)
 
         var entities = finding.Entities ?? [];
 
-        if (entities.Count is < 1 or > 20)
+        if (entities.Count > 20)
         {
             throw new ArgumentException(
-                $"Finding {index} requires between 1 and 20 entities.");
+                $"Finding {index} may contain at most 20 entities.");
         }
 
         foreach (var entity in entities)
@@ -154,8 +166,33 @@ public sealed partial class FindingValidator(IOptions<HippoOptions> options)
     private static string Normalize(string value) =>
         value.Trim().ToLowerInvariant();
 
+    private static void ValidateSourceSystems(
+        IReadOnlyList<string> sources,
+        string operation)
+    {
+        if (sources.Count > 20)
+        {
+            throw new ArgumentException(
+                $"{operation} accepts at most 20 source systems.");
+        }
+
+        if (sources.Any(source =>
+                string.IsNullOrWhiteSpace(source) ||
+                source.Length > 100 ||
+                !SourceSystemPattern().IsMatch(source)))
+        {
+            throw new ArgumentException(
+                $"{operation} source systems must be lowercase stable identifiers.");
+        }
+    }
+
     [GeneratedRegex(
         "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
         RegexOptions.CultureInvariant)]
     private static partial Regex PredicatePattern();
+
+    [GeneratedRegex(
+        "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex SourceSystemPattern();
 }

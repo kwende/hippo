@@ -18,6 +18,7 @@ slice provides:
 - one-hop entity-context expansion;
 - full-text ranking;
 - evidence-backed, append-only findings;
+- immutable producing-system provenance and source-filtered recall;
 - deterministic deduplication;
 - per-client API-key identity;
 - tool-call audit records;
@@ -40,8 +41,17 @@ The two initial tools are:
 - `recall_operational_context`
 - `record_operational_findings`
 
-The database stores claims rather than conversations. Every finding is linked to
-entities, time, confidence, source session, human/client identity, and evidence.
+The database stores claims rather than conversations. Every finding records its
+producing system, time, confidence, source session, human/client identity, and
+evidence. Entity links are optional so a source may retain general engineering
+knowledge as well as machine- or site-specific findings.
+
+`sourceSystem` is an ownership and provenance dimension such as `wander` or
+`support-tool`. It is bound to the authenticated API key rather than accepted as
+caller-controlled write data, and it is distinct from the agent-client name.
+Recall may constrain results to one or more sources, allowing products to
+retrieve the knowledge they stored while authorized agents can search more
+broadly.
 
 See [docs/architecture.md](docs/architecture.md) for the model and design
 constraints.
@@ -65,10 +75,10 @@ Copy the environment template:
 Copy-Item .env.example .env
 ```
 
-Generate three different secrets and place them in `.env`:
+Generate four different secrets and place them in `.env`:
 
 ```powershell
-1..3 | ForEach-Object {
+1..4 | ForEach-Object {
     [Convert]::ToBase64String(
         [Security.Cryptography.RandomNumberGenerator]::GetBytes(32)
     )

@@ -26,8 +26,8 @@ public sealed class FindingCanonicalizerTests
             ]);
 
         Assert.Equal(
-            _canonicalizer.ComputeHash(first),
-            _canonicalizer.ComputeHash(second));
+            _canonicalizer.ComputeHash("wander", first),
+            _canonicalizer.ComputeHash("wander", second));
     }
 
     [Fact]
@@ -42,8 +42,8 @@ public sealed class FindingCanonicalizerTests
             [Entity("machine", "rc1234", "subject")]);
 
         Assert.NotEqual(
-            _canonicalizer.ComputeHash(first),
-            _canonicalizer.ComputeHash(second));
+            _canonicalizer.ComputeHash("wander", first),
+            _canonicalizer.ComputeHash("wander", second));
     }
 
     [Fact]
@@ -60,8 +60,20 @@ public sealed class FindingCanonicalizerTests
         };
 
         Assert.Equal(
-            _canonicalizer.ComputeHash(first),
-            _canonicalizer.ComputeHash(second));
+            _canonicalizer.ComputeHash("wander", first),
+            _canonicalizer.ComputeHash("wander", second));
+    }
+
+    [Fact]
+    public void Hash_is_scoped_to_the_source_system()
+    {
+        var finding = CreateFinding(
+            """{"freePercent":1.8}""",
+            [Entity("machine", "rc1234", "subject")]);
+
+        Assert.NotEqual(
+            _canonicalizer.ComputeHash("wander", finding),
+            _canonicalizer.ComputeHash("support-tool", finding));
     }
 
     private static ProposedFinding CreateFinding(

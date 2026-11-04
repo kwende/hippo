@@ -32,9 +32,14 @@ public sealed class MemoryRepository(
     {
         var stopwatch = Stopwatch.StartNew();
         validator.Validate(request);
+        validator.ValidateSourceSystem(caller.SourceSystem);
 
         var normalizedIdentifiers = request.EntityIdentifiers
             .Where(identifier => !string.IsNullOrWhiteSpace(identifier))
+            .Select(Normalize)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        var normalizedSources = request.SourceSystems
             .Select(Normalize)
             .Distinct(StringComparer.Ordinal)
             .ToArray();
@@ -49,7 +54,7 @@ public sealed class MemoryRepository(
                 normalizedIdentifiers,
                 cancellationToken);
 
-            if (matchedEntities.Count == 0)
+            if (normalizedIdentifiers.Length > 0 && matchedEntities.Count == 0)
             {
                 var warnings = new[]
                 {
@@ -63,6 +68,7 @@ public sealed class MemoryRepository(
                     new
                     {
                         identifiers = normalizedIdentifiers,
+                        sources = normalizedSources,
                         concepts = request.Concepts
                     },
                     0,
@@ -88,6 +94,7 @@ public sealed class MemoryRepository(
             var findings = await QueryFindingsAsync(
                 connection,
                 matchedEntities.Select(entity => entity.Id).ToArray(),
+                normalizedSources,
                 request,
                 maximumResults,
                 cancellationToken);
@@ -99,6 +106,7 @@ public sealed class MemoryRepository(
                 new
                 {
                     identifiers = normalizedIdentifiers,
+                    sources = normalizedSources,
                     concepts = request.Concepts,
                     request.TimeRangeStart,
                     request.TimeRangeEnd
@@ -131,6 +139,7 @@ public sealed class MemoryRepository(
                 new
                 {
                     identifiers = normalizedIdentifiers,
+                    sources = normalizedSources,
                     concepts = request.Concepts
                 },
                 stopwatch.ElapsedMilliseconds,
@@ -148,6 +157,7 @@ public sealed class MemoryRepository(
     {
         var stopwatch = Stopwatch.StartNew();
         validator.Validate(request);
+        validator.ValidateSourceSystem(caller.SourceSystem);
 
         var outcomes = new List<RecordFindingOutcome>();
         var warnings = new List<string>();
@@ -176,7 +186,9 @@ public sealed class MemoryRepository(
                     entityLinks.Add((entityId, Normalize(entity.Role)));
                 }
 
-                var hash = canonicalizer.ComputeHash(finding);
+                var hash = canonicalizer.ComputeHash(
+                    caller.SourceSystem,
+                    finding);
                 var proposedStatus = DetermineInitialStatus(finding);
 
                 var insertResult = await InsertOrFindMemoryAsync(
@@ -228,6 +240,7 @@ public sealed class MemoryRepository(
                 request.SourceSessionId,
                 new
                 {
+                    sourceSystem = Normalize(caller.SourceSystem),
                     findingCount = request.Findings.Count,
                     kinds = request.Findings
                         .Select(finding => Normalize(finding.Kind))
@@ -259,6 +272,7 @@ public sealed class MemoryRepository(
                 request.SourceSessionId,
                 new
                 {
+                    sourceSystem = Normalize(caller.SourceSystem),
                     findingCount = request.Findings.Count
                 },
                 stopwatch.ElapsedMilliseconds,
@@ -317,6 +331,7 @@ public sealed class MemoryRepository(
     private static async Task<IReadOnlyList<RecalledFinding>> QueryFindingsAsync(
         NpgsqlConnection connection,
         Guid[] matchedEntityIds,
+        string[] sourceSystems,
         RecallRequest request,
         int maximumResults,
         CancellationToken cancellationToken)
@@ -344,7 +359,16 @@ public sealed class MemoryRepository(
             (
                 SELECT
                     memory.id,
-                    bool_or(expanded.direct) AS direct_match,
+                    EXISTS
+                    (
+                        SELECT 1
+                        FROM hippo.memory_item_entity AS direct_link
+                        JOIN expanded_entities AS direct_entity
+                            ON direct_entity.id = direct_link.entity_id
+                        WHERE
+                            direct_link.memory_item_id = memory.id
+                            AND direct_entity.direct
+                    ) AS direct_match,
                     CASE
                         WHEN @query = '' THEN 0::real
                         ELSE ts_rank_cd
@@ -354,12 +378,32 @@ public sealed class MemoryRepository(
                         )
                     END AS lexical_score
                 FROM hippo.memory_item AS memory
-                JOIN hippo.memory_item_entity AS link
-                    ON link.memory_item_id = memory.id
-                JOIN expanded_entities AS expanded
-                    ON expanded.id = link.entity_id
                 WHERE
                     memory.status <> 'retracted'
+                    AND
+                    (
+                        NOT @has_entity_filter
+                        OR EXISTS
+                        (
+                            SELECT 1
+                            FROM hippo.memory_item_entity AS entity_link
+                            JOIN expanded_entities AS expanded
+                                ON expanded.id = entity_link.entity_id
+                            WHERE entity_link.memory_item_id = memory.id
+                        )
+                    )
+                    AND
+                    (
+                        NOT @has_source_filter
+                        OR memory.source_system = ANY (@source_systems)
+                    )
+                    AND
+                    (
+                        @query = ''
+                        OR @has_entity_filter
+                        OR memory.search_document @@
+                           websearch_to_tsquery('english', @query)
+                    )
                     AND
                     (
                         @time_start IS NULL
@@ -376,7 +420,6 @@ public sealed class MemoryRepository(
                             '-infinity'::timestamptz
                         ) <= @time_end
                     )
-                GROUP BY memory.id
             )
             SELECT
                 memory.id,
@@ -390,6 +433,7 @@ public sealed class MemoryRepository(
                 memory.recorded_at,
                 memory.confidence,
                 memory.status,
+                memory.source_system,
                 memory.principal_name,
                 memory.agent_client,
                 coalesce
@@ -461,6 +505,20 @@ public sealed class MemoryRepository(
             });
 
         command.Parameters.AddWithValue(
+            "has_entity_filter",
+            matchedEntityIds.Length > 0);
+
+        command.Parameters.Add(
+            new NpgsqlParameter<string[]>("source_systems", sourceSystems)
+            {
+                NpgsqlDbType = NpgsqlDbType.Array | NpgsqlDbType.Text
+            });
+
+        command.Parameters.AddWithValue(
+            "has_source_filter",
+            sourceSystems.Length > 0);
+
+        command.Parameters.AddWithValue(
             "query",
             string.Join(
                 ' ',
@@ -507,16 +565,17 @@ public sealed class MemoryRepository(
                 RecordedAt = reader.GetFieldValue<DateTimeOffset>(8),
                 Confidence = reader.GetFloat(9),
                 Status = reader.GetString(10),
-                PrincipalName = reader.GetString(11),
-                AgentClient = reader.GetString(12),
+                SourceSystem = reader.GetString(11),
+                PrincipalName = reader.GetString(12),
+                AgentClient = reader.GetString(13),
                 Entities =
                     JsonSerializer.Deserialize<List<RelatedEntity>>(
-                        reader.GetString(13),
+                        reader.GetString(14),
                         JsonOptions)
                     ?? [],
                 Evidence =
                     JsonSerializer.Deserialize<List<EvidenceReference>>(
-                        reader.GetString(14),
+                        reader.GetString(15),
                         JsonOptions)
                     ?? []
             });
@@ -645,6 +704,7 @@ public sealed class MemoryRepository(
                 discovered_at,
                 confidence,
                 status,
+                source_system,
                 principal_id,
                 principal_name,
                 agent_client,
@@ -663,6 +723,7 @@ public sealed class MemoryRepository(
                 @discovered_at,
                 @confidence,
                 @status,
+                @source_system,
                 @principal_id,
                 @principal_name,
                 @agent_client,
@@ -718,6 +779,9 @@ public sealed class MemoryRepository(
             finding.Confidence);
 
         insertCommand.Parameters.AddWithValue("status", initialStatus);
+        insertCommand.Parameters.AddWithValue(
+            "source_system",
+            Normalize(caller.SourceSystem));
         insertCommand.Parameters.AddWithValue(
             "principal_id",
             caller.PrincipalId);

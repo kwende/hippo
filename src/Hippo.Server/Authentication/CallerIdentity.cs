@@ -3,7 +3,8 @@ namespace Hippo.Server.Authentication;
 public sealed record CallerIdentity(
     string PrincipalId,
     string DisplayName,
-    string ClientName);
+    string ClientName,
+    string SourceSystem);
 
 public sealed class CallerIdentityAccessor
 {
