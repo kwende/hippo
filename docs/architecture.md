@@ -20,7 +20,13 @@ Human request and logs
 
 ## Epistemic model
 
-Hippo stores claims, not chat transcripts. Each finding contains entities, kind, predicate, value, statement, effective time, discovery time, confidence, status, evidence, and caller provenance.
+Hippo stores claims, not chat transcripts. Each finding contains its producing
+source system, optional entities, kind, predicate, value, statement, effective
+time, discovery time, confidence, status, evidence, and caller provenance. The
+source system is distinct from the authenticated principal and agent client:
+`wander`, `codex`, and a human user answer three different provenance questions.
+The source system is bound to the authenticated credential and cannot be chosen
+by an individual write request.
 
 Initial kinds are `observation`, `event`, `hypothesis`, `conclusion`, and `procedure`.
 
@@ -28,7 +34,12 @@ Initial statuses are `observed`, `proposed`, `verified`, `superseded`, `contradi
 
 ## Retrieval
 
-Version zero intentionally avoids embeddings. Recall normalizes supplied identifiers, resolves canonical keys and aliases, expands one relationship hop, finds linked memories, scores full-text concept overlap, and ranks direct matches, status, confidence, and recency.
+Version zero intentionally avoids embeddings. Recall can be constrained by
+source system, exact entity identifiers, or both. It normalizes supplied
+identifiers, resolves canonical keys and aliases, expands one relationship hop,
+finds matching memories, scores full-text concept overlap, and ranks direct
+matches, status, confidence, and recency. Source-only recall supports knowledge
+that is useful without being tied to a deployed operational entity.
 
 Machine IDs, software versions, dates, and hardware revisions are symbolic data. A vector database is not a superior serial-number index merely because it has more conference talks.
 
@@ -36,7 +47,11 @@ Embeddings can be added when measured misses demonstrate a semantic-recall need.
 
 ## Consolidation and deduplication
 
-A finding is canonicalized from its kind, predicate, structured value, sorted entity links, effective-time bucket, and sorted evidence references. The SHA-256 digest is unique. Repeated submission returns the existing memory ID and may attach new evidence or entity links.
+A finding is canonicalized from its source system, kind, predicate, structured
+value, sorted entity links, effective-time bucket, and sorted evidence
+references. The SHA-256 digest is unique. Repeated submission from the same
+source returns the existing memory ID and may attach new evidence or entity
+links. Different sources can retain the same claim independently.
 
 Wording is not part of the identity key. This prevents trivial paraphrases from multiplying into fake knowledge.
 

@@ -38,14 +38,22 @@ services:
       Hippo__ApiKeys__0__PrincipalId: ben
       Hippo__ApiKeys__0__DisplayName: Ben
       Hippo__ApiKeys__0__ClientName: codex
+      Hippo__ApiKeys__0__SourceSystem: codex
       Hippo__ApiKeys__1__Token: ${HIPPO_CLAUDE_TOKEN:?Set HIPPO_CLAUDE_TOKEN in .env}
       Hippo__ApiKeys__1__PrincipalId: josh
       Hippo__ApiKeys__1__DisplayName: Josh
       Hippo__ApiKeys__1__ClientName: claude
+      Hippo__ApiKeys__1__SourceSystem: claude
       Hippo__ApiKeys__2__Token: ${HIPPO_TEST_TOKEN:?Set HIPPO_TEST_TOKEN in .env}
       Hippo__ApiKeys__2__PrincipalId: test-harness
       Hippo__ApiKeys__2__DisplayName: Test Harness
       Hippo__ApiKeys__2__ClientName: integration-test
+      Hippo__ApiKeys__2__SourceSystem: integration-test
+      Hippo__ApiKeys__3__Token: ${HIPPO_WANDER_TOKEN:?Set HIPPO_WANDER_TOKEN in .env}
+      Hippo__ApiKeys__3__PrincipalId: ben
+      Hippo__ApiKeys__3__DisplayName: Ben
+      Hippo__ApiKeys__3__ClientName: wander
+      Hippo__ApiKeys__3__SourceSystem: wander
     ports:
       - "127.0.0.1:8787:8080"
     depends_on:

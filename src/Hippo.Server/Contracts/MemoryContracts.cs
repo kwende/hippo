@@ -8,7 +8,11 @@ public sealed record RecallRequest
     [Description(
         "Machine IDs, customer/site IDs, incident numbers, software versions, " +
         "hardware revisions, or other exact operational identifiers.")]
-    public required IReadOnlyList<string> EntityIdentifiers { get; init; }
+    public IReadOnlyList<string> EntityIdentifiers { get; init; } = [];
+
+    [Description(
+        "Optional producing systems to search, such as wander or support-tool.")]
+    public IReadOnlyList<string> SourceSystems { get; init; } = [];
 
     [Description("Optional beginning of the operational time window.")]
     public DateTimeOffset? TimeRangeStart { get; init; }
@@ -64,6 +68,8 @@ public sealed record RecalledFinding
 
     public required string Status { get; init; }
 
+    public required string SourceSystem { get; init; }
+
     public required string PrincipalName { get; init; }
 
     public required string AgentClient { get; init; }
@@ -112,7 +118,7 @@ public sealed record ProposedFinding
     public JsonElement? Value { get; init; }
 
     [Description("Operational entities connected to this finding.")]
-    public required IReadOnlyList<EntityReference> Entities { get; init; }
+    public IReadOnlyList<EntityReference> Entities { get; init; } = [];
 
     [Description(
         "Compact evidence excerpts or references. Do not submit entire logs.")]

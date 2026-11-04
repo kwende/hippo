@@ -72,7 +72,8 @@ public sealed class ApiKeyAuthenticationMiddlewareTests
             new CallerIdentity(
                 "test-principal",
                 "Test Principal",
-                "test-client"),
+                "test-client",
+                "test-source"),
             caller.Current);
     }
 
@@ -109,7 +110,8 @@ public sealed class ApiKeyAuthenticationMiddlewareTests
                             Token = "valid-token",
                             PrincipalId = "test-principal",
                             DisplayName = "Test Principal",
-                            ClientName = "test-client"
+                            ClientName = "test-client",
+                            SourceSystem = "test-source"
                         }
                     ]
                 }),

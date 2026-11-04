@@ -44,4 +44,8 @@ After reaching a durable, evidence-backed finding:
 - Writes are append-only; future correction should supersede or contradict
   rather than mutate history.
 - Preserve human principal, agent client, source session, and evidence.
+- Preserve the producing system separately from the authenticated principal and
+  agent client. `source_system` identifies which product owns the knowledge;
+  it is derived from the authenticated API key, participates in deduplication,
+  and may constrain recall. Never accept it as caller-controlled write data.
 - Add tests for changes to canonicalization, validation, SQL, or tool contracts.

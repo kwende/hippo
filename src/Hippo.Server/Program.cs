@@ -18,8 +18,9 @@ builder.Services
             !string.IsNullOrWhiteSpace(key.Token) &&
             !string.IsNullOrWhiteSpace(key.PrincipalId) &&
             !string.IsNullOrWhiteSpace(key.DisplayName) &&
-            !string.IsNullOrWhiteSpace(key.ClientName)),
-        "Every Hippo API key requires token, principal, display name, and client.")
+            !string.IsNullOrWhiteSpace(key.ClientName) &&
+            !string.IsNullOrWhiteSpace(key.SourceSystem)),
+        "Every Hippo API key requires token, principal, display name, client, and source system.")
     .ValidateOnStart();
 
 builder.Services.AddSingleton(serviceProvider =>
